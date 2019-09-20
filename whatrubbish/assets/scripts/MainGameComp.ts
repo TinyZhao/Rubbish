@@ -29,7 +29,7 @@ export class MainGameComp extends cc.Component {
     public bucketPool:cc.NodePool = null;
 
     private showRunTime = 10;//能看到的时间
-    private sendBucketIntervalTime = 0.5;//产生bucket间隔
+    private sendBucketIntervalTime = 1;//产生bucket间隔
 
     onLoad () {
         this.bucketPool = new cc.NodePool;
@@ -60,10 +60,11 @@ export class MainGameComp extends cc.Component {
         let deltaHeight = this.ndBgSp.height - cc.winSize.height;
         this.ndBgSp.y = deltaHeight/2;
 
-        let action = cc.moveTo(2,cc.v2(0,-deltaHeight/2));
+        let action1 = cc.moveTo(12,cc.v2(0,-deltaHeight/2));
+        let action2 = cc.moveTo(12,cc.v2(0,deltaHeight/2));
         this.ndBgSp.runAction(cc.sequence([
-            action,
-            action.clone().reverse(),
+            action1,
+            action2,
         ]).repeatForever())
     }
 
