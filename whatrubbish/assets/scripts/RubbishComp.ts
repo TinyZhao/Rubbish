@@ -1,5 +1,3 @@
-import { MainGameComp } from "./MainGameComp";
-
 // Learn TypeScript:
 //  - [Chinese] https://docs.cocos.com/creator/manual/zh/scripting/typescript.html
 //  - [English] http://www.cocos2d-x.org/docs/creator/manual/en/scripting/typescript.html
@@ -10,25 +8,54 @@ import { MainGameComp } from "./MainGameComp";
 //  - [Chinese] https://docs.cocos.com/creator/manual/zh/scripting/life-cycle-callbacks.html
 //  - [English] http://www.cocos2d-x.org/docs/creator/manual/en/scripting/life-cycle-callbacks.html
 
+// let colorConfig = [
+//     {color:cc.color(255,0,0),name:"有害垃圾"},
+//     {color:cc.color(0,255,0),name:"厨余垃圾"},
+//     {color:cc.color(0,0,255),name:"可回收物"},
+//     {color:cc.color(200,200,200),name:"其他垃圾"},
+// ]
+
+let colorConfig = [
+    {color:cc.color(255,0,0),name:"垃圾1"},
+    {color:cc.color(0,255,0),name:"垃圾2"},
+    {color:cc.color(0,0,255),name:"垃圾3"},
+    {color:cc.color(200,200,200),name:"垃圾4"},
+]
+
+
 const {ccclass, property} = cc._decorator;
 
 @ccclass
-export default class NewClass extends cc.Component {
+export class RubbishComp extends cc.Component {
 
-    @property(MainGameComp)
-    compMainGame:MainGameComp = null;
+    @property(cc.Node)
+    spNode: cc.Node = null;
 
-    // LIFE-CYCLE CALLBACKS:
+    @property(cc.Label)
+    lbName: cc.Label = null;
 
     // onLoad () {}
 
     start () {
+    }
 
+    init(){
+        this.reuse()
+    }
+
+    unuse(){
+        this.node.active = false;
+    }
+
+    reuse(){
+        this.node.active = true;
+        this.node.stopAllActions();
+
+        let randomConfig = colorConfig[Math.floor(Math.random()*(colorConfig.length - 1))];
+        this.spNode.color = randomConfig.color;
+
+        this.lbName.string = randomConfig.name;
     }
 
     // update (dt) {}
-    onCollisionEnter(collComp,self){
-        collComp.node.active = false;
-        this.compMainGame.bucketPool.put(collComp.node);
-    }
 }

@@ -1,14 +1,13 @@
+import { RubbishComp } from "./RubbishComp";
 import { BucketComp } from "./BucketComp";
 
-// Learn TypeScript:
-//  - [Chinese] https://docs.cocos.com/creator/manual/zh/scripting/typescript.html
-//  - [English] http://www.cocos2d-x.org/docs/creator/manual/en/scripting/typescript.html
-// Learn Attribute:
-//  - [Chinese] https://docs.cocos.com/creator/manual/zh/scripting/reference/attributes.html
-//  - [English] http://www.cocos2d-x.org/docs/creator/manual/en/scripting/reference/attributes.html
-// Learn life-cycle callbacks:
-//  - [Chinese] https://docs.cocos.com/creator/manual/zh/scripting/life-cycle-callbacks.html
-//  - [English] http://www.cocos2d-x.org/docs/creator/manual/en/scripting/life-cycle-callbacks.html
+
+export let GameEventType = cc.Enum({
+    Game_Wrong: "Wrong",
+    Game_AddScore: "AddScore",
+
+    Game_GameOver: "GameOver",
+})
 
 const {ccclass, property} = cc._decorator;
 
@@ -19,24 +18,48 @@ export class MainGameComp extends cc.Component {
     ndBgSp: cc.Node = null;
 
     @property(cc.Node)
-    ndRubbish: cc.Node = null;
+    ndRubbishContainer: cc.Node = null;
 
-    @property(cc.Node)
-    bucketContainer: cc.Node = null;
+    @property(cc.Label)
+    lbStartNum: cc.Label = null;
+
+    @property(cc.Label)
+    lbWrongNum: cc.Label = null;
+    @property(cc.Label)
+    lbScore: cc.Label = null;
+    @property(cc.Label)
+    lbTimer: cc.Label = null;
+
+    @property(cc.Prefab)
+    pfRubbish: cc.Prefab = null;
     @property(cc.Prefab)
     pfBucket: cc.Prefab = null;
 
-    public bucketPool:cc.NodePool = null;
+    public rubbishPool:cc.NodePool = null;
+
+    ndBucket: cc.Node;
 
     private showRunTime = 10;//能看到的时间
     private sendBucketIntervalTime = 1;//产生bucket间隔
 
+    bIsGaming = false;
+
+    private nWrongNum = 0;
+    private nScoreNum = 0;
+    private nGameTime = 0;
+
+    private events = [
+        [GameEventType.Game_AddScore,this.addScoreNum],
+        [GameEventType.Game_Wrong,this.addWrongNum],
+        [GameEventType.Game_GameOver,this.gameOver],
+    ];
+
     onLoad () {
-        this.bucketPool = new cc.NodePool;
+        this.rubbishPool = new cc.NodePool;
 
         for (let index = 0; index < 20; index++) {
-            let node = cc.instantiate(this.pfBucket);
-            this.bucketPool.put(node);
+            let node = cc.instantiate(this.pfRubbish);
+            this.rubbishPool.put(node);
         }
 
         let collManager = cc.director.getCollisionManager();
@@ -44,16 +67,65 @@ export class MainGameComp extends cc.Component {
         collManager.enabledDebugDraw = true;
         collManager.enabledDrawBoundingBox = true;
 
-        this.ndRubbish.on(cc.Node.EventType.TOUCH_MOVE,this._onTouchMoveHandle,this);
+        this.lbStartNum.node.active = false;
     }
 
-    _onTouchMoveHandle(event, captureListeners){
-        this.ndRubbish.setPosition(this.node.convertToNodeSpaceAR(event.touch.getLocation()));
+    init(){
+        this.bIsGaming = false;
+
+        this.nScoreNum = 0;
+        this.nWrongNum = 0;
+        this.nGameTime = 0;
+
+        this.ndBucket = cc.instantiate(this.pfBucket);
+        this.ndBucket.getComponent(BucketComp).init(this);
+
+        this.ndBucket.parent = this.node;
+        this.ndBucket.x = 0;
+        this.ndBucket.y = -this.node.height/2 + 100;
+
+        this.initGameEvent();
+    }
+
+    initGameEvent(){
+        for (let index = 0; index < this.events.length; index++) {
+            const element = this.events[index];
+            this.node.on(element[0] as string,element[1] as Function,this);
+        } 
+    }
+
+    onDestroy(){
+        for (let index = 0; index < this.events.length; index++) {
+            const element = this.events[index];
+            this.node.off(element[0] as string,element[1] as Function,this);
+        }
+    }
+    
+
+    addWrongNum(){
+        this.nWrongNum += 1;
+        this.lbWrongNum.string = this.nWrongNum + "";
+        if(this.nWrongNum > 10){
+            this.gameOver();
+        }
+    }
+    addScoreNum(){
+        this.nScoreNum += 1;
+        this.lbScore.string = this.nScoreNum + "";
+    }
+
+    gameOver(){
+        this.bIsGaming = false;
+        // this.ndRubbishContainer.pauseAllActions();
+        cc.game.pause();
     }
 
     start () {
+        this.init();
+
         this.runBgAnim();
-        this.startGame();
+        
+        this.go321();
     }
 
     runBgAnim(){
@@ -69,43 +141,80 @@ export class MainGameComp extends cc.Component {
     }
 
     getBucket(){
-        let bucketNode = this.bucketPool.get();
+        let bucketNode = this.rubbishPool.get();
         if(!cc.isValid(bucketNode)){
-            bucketNode = cc.instantiate(this.pfBucket);
+            bucketNode = cc.instantiate(this.pfRubbish);
         }
 
         return bucketNode;
     }
 
     go321(){
-        
+        this.lbStartNum.node.active = true;
+        this.lbStartNum.node.runAction(cc.sequence([
+            cc.scaleTo(0.5,2),
+            cc.spawn([
+                cc.scaleTo(0.5,0.1),
+                cc.fadeOut(0.5)
+            ]),
+            cc.callFunc(()=>{
+                this.lbStartNum.string = "2";
+                this.lbStartNum.node.scale = 1;
+                this.lbStartNum.node.opacity = 255;
+            }),
+            cc.scaleTo(0.5,2),
+            cc.spawn([
+                cc.scaleTo(0.5,0.1),
+                cc.fadeOut(0.5)
+            ]),
+            cc.callFunc(()=>{
+                this.lbStartNum.string = "1";
+                this.lbStartNum.node.scale = 1;
+                this.lbStartNum.node.opacity = 255;
+            }),
+            cc.scaleTo(0.5,2),
+            cc.spawn([
+                cc.scaleTo(0.5,0.1),
+                cc.fadeOut(0.5)
+            ]),
+            cc.callFunc(()=>{
+                this.startGame();
+            })
+        ]))
     }
 
     startGame(){
-        
-        this.startSendBucket();
+        this.bIsGaming = true;
+        this.startSendRubbish();
     }
 
-    startSendBucket(){
-        let contSize = this.bucketContainer.getContentSize();
+    startSendRubbish(){
+        let contSize = this.ndRubbishContainer.getContentSize();
         this.schedule(()=>{
-            let oneBucket:cc.Node = this.getBucket();
-            oneBucket.getComponent(BucketComp).init();
-
-            let fixX = oneBucket.getContentSize().width/2;
-            oneBucket.parent = this.bucketContainer;
+            if(this.bIsGaming){
+                let oneRubbish:cc.Node = this.getBucket();
+                oneRubbish.getComponent(RubbishComp).init();
     
-            let startPosX = (Math.random()> 0.5 ? 1 : -1) * (Math.random() * contSize.width/2 - fixX);
-            oneBucket.setPosition(cc.v2(startPosX,contSize.height))
-    
-            oneBucket.runAction(cc.sequence([
-                cc.moveTo(this.showRunTime * 2,cc.v2(startPosX,-contSize.height)),
-                cc.callFunc(()=>{
-                    this.bucketPool.put(oneBucket);
-                })
-            ]))
+                let fixX = oneRubbish.getContentSize().width/2;
+                oneRubbish.parent = this.ndRubbishContainer;
+        
+                let startPosX = (Math.random()> 0.5 ? 1 : -1) * (Math.random() * contSize.width/2 - fixX);
+                oneRubbish.setPosition(cc.v2(startPosX,contSize.height/2 + 100))
+        
+                oneRubbish.runAction(cc.sequence([
+                    cc.moveTo(this.showRunTime * 2,cc.v2(startPosX,-contSize.height/2 - 100)),
+                    cc.callFunc(()=>{
+                        this.rubbishPool.put(oneRubbish);
+                    })
+                ]))
+            }
         },this.sendBucketIntervalTime)
     }
 
-    // update (dt) {}
+    update (dt) {
+        if(this.bIsGaming){
+            this.nGameTime += dt;
+            this.lbTimer.string = this.nGameTime.toFixed(2) + "";
+        }
+    }
 }

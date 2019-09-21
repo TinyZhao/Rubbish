@@ -1,3 +1,5 @@
+import { MainGameComp, GameEventType } from "./MainGameComp";
+
 // Learn TypeScript:
 //  - [Chinese] https://docs.cocos.com/creator/manual/zh/scripting/typescript.html
 //  - [English] http://www.cocos2d-x.org/docs/creator/manual/en/scripting/typescript.html
@@ -8,46 +10,38 @@
 //  - [Chinese] https://docs.cocos.com/creator/manual/zh/scripting/life-cycle-callbacks.html
 //  - [English] http://www.cocos2d-x.org/docs/creator/manual/en/scripting/life-cycle-callbacks.html
 
-let colorConfig = [
-    {color:cc.color(255,0,0),name:"有害垃圾"},
-    {color:cc.color(0,255,0),name:"厨余垃圾"},
-    {color:cc.color(0,0,255),name:"可回收物"},
-    {color:cc.color(200,200,200),name:"其他垃圾"},
-]
-
 const {ccclass, property} = cc._decorator;
 
 @ccclass
 export class BucketComp extends cc.Component {
 
-    @property(cc.Node)
-    spNode: cc.Node = null;
+    compMainGame:MainGameComp = null;
 
-    @property(cc.Label)
-    lbName: cc.Label = null;
+    // LIFE-CYCLE CALLBACKS:
 
     // onLoad () {}
 
     start () {
+        this.node.on(cc.Node.EventType.TOUCH_MOVE,this._onTouchMoveHandle,this);
     }
 
-    init(){
-        this.reuse()
+    init(comp:MainGameComp){
+        this.compMainGame = comp;
     }
 
-    unuse(){
-        this.node.active = false;
+    _onTouchMoveHandle(event, captureListeners){
+        if(this.compMainGame.bIsGaming){
+            this.node.setPosition(this.compMainGame.node.convertToNodeSpaceAR(event.touch.getLocation()));
+        }
     }
-
-    reuse(){
-        this.node.active = true;
-        this.node.stopAllActions();
-
-        let randomConfig = colorConfig[Math.floor(Math.random()*(colorConfig.length - 1))];
-        this.spNode.color = randomConfig.color;
-
-        this.lbName.string = randomConfig.name;
-    }
-
     // update (dt) {}
+    onCollisionEnter(collComp,self){
+        if(self.tag == 1){
+            collComp.node.active = false;
+            this.compMainGame.node.emit(GameEventType.Game_AddScore);
+        }else{
+            this.compMainGame.node.emit(GameEventType.Game_Wrong);
+        }
+        this.compMainGame.rubbishPool.put(collComp.node);
+    }
 }
