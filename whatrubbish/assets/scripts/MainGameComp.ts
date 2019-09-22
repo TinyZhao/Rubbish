@@ -1,5 +1,6 @@
 import { RubbishComp } from "./RubbishComp";
 import { BucketComp } from "./BucketComp";
+import { SoundComp, SoundConfig } from "./SoundComp";
 
 
 export let GameEventType = cc.Enum({
@@ -16,6 +17,9 @@ export class MainGameComp extends cc.Component {
 
     @property(cc.Node)
     ndBgSp: cc.Node = null;
+
+    @property(cc.Node)
+    ndMask: cc.Node = null;
 
     @property(cc.Node)
     ndRubbishContainer: cc.Node = null;
@@ -35,17 +39,21 @@ export class MainGameComp extends cc.Component {
     @property(cc.Prefab)
     pfBucket: cc.Prefab = null;
 
+    soundManager: SoundComp = null;
+
     public rubbishPool:cc.NodePool = null;
 
     ndBucket: cc.Node;
 
     private showRunTime = 10;//能看到的时间
-    private sendBucketIntervalTime = 1;//产生bucket间隔
+    private sendBucketIntervalTime = 2;//产生bucket间隔
 
     bIsGaming = false;
 
     private nWrongNum = 0;
     private nScoreNum = 0;
+    private lastScoreTime = 0;
+    private comboNum = 0;
     private nGameTime = 0;
 
     private events = [
@@ -65,9 +73,15 @@ export class MainGameComp extends cc.Component {
         let collManager = cc.director.getCollisionManager();
         collManager.enabled = true;
         collManager.enabledDebugDraw = true;
-        collManager.enabledDrawBoundingBox = true;
+        // collManager.enabledDrawBoundingBox = true;
 
-        this.lbStartNum.node.active = false;
+        this.soundManager = this.node.addComponent(SoundComp);
+
+        this.initGameEvent();
+
+        this.ndMask.active = false;
+
+        this.soundManager.playMusic();
     }
 
     init(){
@@ -76,15 +90,30 @@ export class MainGameComp extends cc.Component {
         this.nScoreNum = 0;
         this.nWrongNum = 0;
         this.nGameTime = 0;
+        this.comboNum = 0;
 
-        this.ndBucket = cc.instantiate(this.pfBucket);
-        this.ndBucket.getComponent(BucketComp).init(this);
+        this.lbScore.string = "0";
+        this.lbTimer.string = "0";
+        this.lbWrongNum.string = "0";
+
+        this.lbStartNum.node.active = false;
+        this.ndMask.active = false;
+
+        if(!cc.isValid(this.ndBucket)){
+            this.ndBucket = cc.instantiate(this.pfBucket);
+
+            let comp = this.ndBucket.getComponent(BucketComp);
+            if(comp){
+                comp.init(this);
+                comp.reStart();
+            }
+        }else{
+            this.ndBucket.getComponent(BucketComp).reStart();
+        }
 
         this.ndBucket.parent = this.node;
         this.ndBucket.x = 0;
         this.ndBucket.y = -this.node.height/2 + 100;
-
-        this.initGameEvent();
     }
 
     initGameEvent(){
@@ -105,30 +134,68 @@ export class MainGameComp extends cc.Component {
     addWrongNum(){
         this.nWrongNum += 1;
         this.lbWrongNum.string = this.nWrongNum + "";
-        if(this.nWrongNum > 10){
+        if(this.nWrongNum > 20){
             this.gameOver();
         }
     }
     addScoreNum(){
         this.nScoreNum += 1;
         this.lbScore.string = this.nScoreNum + "";
+
+        let nowTimeStamp = new Date().getTime();
+        if(this.nScoreNum > 1){
+            if(nowTimeStamp - this.lastScoreTime < 2 * 1000){
+                this.comboNum += 1;
+            }else{
+                this.comboNum = 0;
+            }
+        }
+        this.lastScoreTime = nowTimeStamp;
+        
+        if(this.comboNum > 1){
+            // let soundIndex = Math.max(this.comboNum,2);
+            let soundIndex = Math.min(this.comboNum,5);
+            this.soundManager.playEffect(SoundConfig["killCombo" + soundIndex]);
+        }else{
+            if(this.nScoreNum == 1){
+                this.soundManager.playEffect(SoundConfig.kill1);
+            }
+        }
     }
 
     gameOver(){
         this.bIsGaming = false;
         // this.ndRubbishContainer.pauseAllActions();
-        cc.game.pause();
+        // cc.game.pause();
+        // for (let index = 0; index < this.ndRubbishContainer.children.length; index++) {
+        //     const child = this.ndRubbishContainer.children[index];
+        //     child.stopAllActions();
+        // }
+        this.ndRubbishContainer.cleanup();
+
+        this.ndMask.active = true;
     }
 
-    start () {
+    onRestartHandle(){
         this.init();
 
-        this.runBgAnim();
-        
+        for (let index = this.ndRubbishContainer.childrenCount - 1; index >= 0; index--) {
+            const node = this.ndRubbishContainer.children[index];
+            if (node) {
+                node.cleanup();
+                node.parent = null;
+            }
+        }
+
         this.go321();
     }
 
+    start () {
+        this.onRestartHandle();
+    }
+
     runBgAnim(){
+        this.ndBgSp.stopAllActions();
         let deltaHeight = this.ndBgSp.height - cc.winSize.height;
         this.ndBgSp.y = deltaHeight/2;
 
@@ -150,6 +217,8 @@ export class MainGameComp extends cc.Component {
     }
 
     go321(){
+        this.runBgAnim();
+
         this.lbStartNum.node.active = true;
         this.lbStartNum.node.runAction(cc.sequence([
             cc.scaleTo(0.5,2),
