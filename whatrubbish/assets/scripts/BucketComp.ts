@@ -1,4 +1,4 @@
-import { MainGameComp, GameEventType } from "./MainGameComp";
+import { Game1Comp, GameEventType } from "./Game1Comp";
 import { GameConfig } from "./GameConfig";
 import { RubbishComp } from "./RubbishComp";
 
@@ -21,7 +21,7 @@ export class BucketComp extends cc.Component {
     ndSp: cc.Node = null;
 
     bucketType = -1;
-    compMainGame:MainGameComp = null;
+    compMainGame:Game1Comp = null;
 
     rotationIndex = -1;
 
@@ -34,7 +34,7 @@ export class BucketComp extends cc.Component {
         this.node.on(cc.Node.EventType.TOUCH_END,this._onTouchEndHandle,this);
     }
 
-    init(comp:MainGameComp){
+    init(comp:Game1Comp){
         this.compMainGame = comp;
     }
 

@@ -13,7 +13,7 @@ export let GameEventType = cc.Enum({
 const {ccclass, property} = cc._decorator;
 
 @ccclass
-export class MainGameComp extends cc.Component {
+export class Game1Comp extends cc.Component {
 
     @property(cc.Node)
     ndBgSp: cc.Node = null;
@@ -174,6 +174,10 @@ export class MainGameComp extends cc.Component {
         this.ndRubbishContainer.cleanup();
 
         this.ndMask.active = true;
+    }
+
+    onBackHandle(){
+        cc.director.loadScene("MainScene");
     }
 
     onRestartHandle(){
